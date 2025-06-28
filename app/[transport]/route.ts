@@ -152,18 +152,20 @@ const handler = createMcpHandler(
     // LinkedIn Network SQL query tool
     server.tool(
       "linkedin-sql-query",
-      "Execute SELECT queries against the LinkedIn Network table (hs_linkedin_network) with automatic LIMIT protection. Contains LinkedIn profile data including personal info, work status, location, experience, and education details. Only SELECT statements allowed for security.",
+      "Execute SELECT queries against the LinkedIn Network table (hs_linkedin_network) with automatic LIMIT protection. Contains comprehensive LinkedIn profile data including: Personal info (id, urn, username, first_name, last_name, summary, headline), Work status (is_creator, is_open_to_work, is_hiring, is_headstarter_affiliated), Location (city, country), Experience counts (fulltime_count, internship_count), Recent company details (most_recent_company_name, most_recent_company_username, most_recent_company_title, most_recent_company_logo, most_recent_company_year), and Education info (most_recent_school, most_recent_school_degree, most_recent_school_month, most_recent_school_year). Only SELECT statements allowed for security.",
       {
         query: z
           .string()
           .describe(
-            "The SQL query to execute against hs_linkedin_network table"
+            "The SQL query to execute against hs_linkedin_network table. Must start with SELECT for security. Available fields: id, urn, username, first_name, last_name, is_creator, is_open_to_work, is_hiring, summary, headline, city, country, fulltime_count, internship_count, is_headstarter_affiliated, most_recent_company_name, most_recent_company_username, most_recent_school, most_recent_school_month, most_recent_school_year, most_recent_company_logo, most_recent_company_title, most_recent_school_degree, most_recent_company_year"
           ),
         limit: z
           .number()
           .optional()
           .default(100)
-          .describe("Maximum number of rows to return (default: 100)"),
+          .describe(
+            "Maximum number of rows to return (default: 100, automatically added if not specified in query)"
+          ),
       },
       async ({ query, limit = 100 }) => {
         logger.info("LinkedIn SQL query tool called", {
@@ -244,9 +246,13 @@ const handler = createMcpHandler(
     // Get LinkedIn profile tool
     server.tool(
       "get-linkedin-profile",
-      "Get a specific LinkedIn profile by username or URN from the LinkedIn network. Returns complete profile information including personal details, work status, location, experience counts, and most recent company/school information.",
+      "Get a specific LinkedIn profile by username or URN from the LinkedIn network. Returns complete profile information including: Personal details (first_name, last_name, summary, headline), Professional status (is_creator, is_open_to_work, is_hiring, is_headstarter_affiliated), Location (city, country), Experience metrics (fulltime_count, internship_count), Current company info (most_recent_company_name, most_recent_company_title, most_recent_company_logo, most_recent_company_year), and Education details (most_recent_school, most_recent_school_degree, graduation year/month). Useful for detailed profile analysis and networking research.",
       {
-        identifier: z.string().describe("Username or URN to search for"),
+        identifier: z
+          .string()
+          .describe(
+            "LinkedIn username (without @) or full LinkedIn URN to search for. Examples: 'johndoe' or 'urn:li:person:ABC123'"
+          ),
       },
       async ({ identifier }) => {
         logger.info("Get LinkedIn profile tool called", { identifier });
@@ -254,7 +260,32 @@ const handler = createMcpHandler(
         try {
           logger.debug("Executing LinkedIn profile lookup query");
           const results = await db.execute(sql`
-            SELECT * FROM hs_linkedin_network 
+            SELECT 
+              id,
+              urn,
+              username,
+              first_name,
+              last_name,
+              summary,
+              headline,
+              city,
+              country,
+              is_creator,
+              is_open_to_work,
+              is_hiring,
+              is_headstarter_affiliated,
+              fulltime_count,
+              internship_count,
+              most_recent_company_name,
+              most_recent_company_username,
+              most_recent_company_title,
+              most_recent_company_logo,
+              most_recent_company_year,
+              most_recent_school,
+              most_recent_school_degree,
+              most_recent_school_month,
+              most_recent_school_year
+            FROM hs_linkedin_network 
             WHERE username = ${identifier} OR urn = ${identifier}
             LIMIT 1
           `);
@@ -315,47 +346,75 @@ const handler = createMcpHandler(
     // Search LinkedIn profiles tool
     server.tool(
       "search-linkedin-profiles",
-      "Advanced search of LinkedIn profiles with multiple filter options. Filter by work status (open to work, hiring), professional attributes (creator status, Headstarter affiliation), location (city, country), and experience levels. Great for talent sourcing and networking.",
+      "Advanced search of LinkedIn profiles with comprehensive filtering options. Search by work status (is_open_to_work for job seekers, is_hiring for recruiters), professional attributes (is_creator for content creators/influencers, is_headstarter_affiliated for Headstarter community members), geographic location (city/country with partial matching), company/school affiliations (current or recent), and experience levels (minimum full-time or internship counts). Returns profiles with complete professional information including contact details, work history, education, and current status. Perfect for talent sourcing, networking, recruitment, and business development.",
       {
         isOpenToWork: z
           .boolean()
           .optional()
-          .describe("Filter by users open to work"),
+          .describe(
+            "Filter by users actively seeking job opportunities (true) or exclude job seekers (false)"
+          ),
         isHiring: z
           .boolean()
           .optional()
-          .describe("Filter by users who are hiring"),
-        isCreator: z.boolean().optional().describe("Filter by creator status"),
+          .describe(
+            "Filter by users who are actively recruiting/hiring (true) or exclude hiring managers (false)"
+          ),
+        isCreator: z
+          .boolean()
+          .optional()
+          .describe(
+            "Filter by LinkedIn content creators and thought leaders who actively post and engage"
+          ),
         isHeadstarterAffiliated: z
           .boolean()
           .optional()
-          .describe("Filter by Headstarter affiliation"),
-        city: z.string().optional().describe("Filter by city (partial match)"),
+          .describe(
+            "Filter by Headstarter community members - people who have listed Headstarter experience on their LinkedIn profiles"
+          ),
+        city: z
+          .string()
+          .optional()
+          .describe(
+            "Filter by city name using partial matching (e.g., 'York' matches 'New York', 'York', 'Yorkshire')"
+          ),
         country: z
           .string()
           .optional()
-          .describe("Filter by country (partial match)"),
+          .describe(
+            "Filter by country name using partial matching (e.g., 'United' matches 'United States', 'United Kingdom')"
+          ),
         company: z
           .string()
           .optional()
-          .describe("Filter by most recent company name (partial match)"),
+          .describe(
+            "Filter by most recent company name using partial matching (e.g., 'Google' matches 'Google Inc', 'Google LLC')"
+          ),
         school: z
           .string()
           .optional()
-          .describe("Filter by most recent school (partial match)"),
+          .describe(
+            "Filter by most recent school/university using partial matching (e.g., 'Stanford' matches 'Stanford University')"
+          ),
         minFulltimeExperience: z
           .number()
           .optional()
-          .describe("Minimum number of full-time experiences"),
+          .describe(
+            "Minimum number of full-time work experiences/positions (useful for finding experienced professionals)"
+          ),
         minInternshipExperience: z
           .number()
           .optional()
-          .describe("Minimum number of internship experiences"),
+          .describe(
+            "Minimum number of internship experiences (useful for finding entry-level candidates with internship background)"
+          ),
         limit: z
           .number()
           .optional()
           .default(25)
-          .describe("Maximum number of profiles to return (default: 25)"),
+          .describe(
+            "Maximum number of profiles to return (default: 25, max recommended: 100 for performance)"
+          ),
       },
       async ({
         isOpenToWork,
@@ -388,21 +447,27 @@ const handler = createMcpHandler(
           let query = sql`
             SELECT 
               id,
+              urn,
               username,
               first_name,
               last_name,
+              headline,
+              summary,
+              city,
+              country,
               is_open_to_work,
               is_hiring,
               is_creator,
               is_headstarter_affiliated,
-              city,
-              country,
-              headline,
+              fulltime_count,
+              internship_count,
               most_recent_company_name,
               most_recent_company_title,
+              most_recent_company_logo,
+              most_recent_company_year,
               most_recent_school,
-              fulltime_count,
-              internship_count
+              most_recent_school_degree,
+              most_recent_school_year
             FROM hs_linkedin_network
             WHERE 1=1
           `;
@@ -438,7 +503,7 @@ const handler = createMcpHandler(
             query = sql`${query} AND internship_count >= ${minInternshipExperience}`;
           }
 
-          query = sql`${query} ORDER BY id LIMIT ${limit}`;
+          query = sql`${query} ORDER BY (fulltime_count + internship_count) DESC, last_name ASC LIMIT ${limit}`;
 
           logger.debug("Executing search LinkedIn profiles query");
           const results = await db.execute(query);
@@ -484,26 +549,34 @@ const handler = createMcpHandler(
     // Get profiles by location tool
     server.tool(
       "get-profiles-by-location",
-      "Get LinkedIn profiles from specific geographic locations. Useful for finding talent or connections in particular cities or countries. Returns profiles with location details and basic professional information.",
+      "Get LinkedIn profiles from specific geographic locations with flexible location matching. Useful for regional talent sourcing, local networking, market research, and finding professionals in specific geographic areas. Supports both partial matching (default) for broader search (e.g., 'York' finds 'New York', 'Yorkshire') and exact matching for precise location filtering. Returns profiles with complete location details, professional status indicators, and recent company/role information. Ideal for recruiters focusing on specific markets, businesses expanding to new regions, or professionals looking to network locally.",
       {
         city: z
           .string()
           .optional()
-          .describe("City name (partial match supported)"),
+          .describe(
+            "City name to filter by. Supports partial matching by default (e.g., 'Francisco' matches 'San Francisco'). Leave empty to search all cities."
+          ),
         country: z
           .string()
           .optional()
-          .describe("Country name (partial match supported)"),
+          .describe(
+            "Country name to filter by. Supports partial matching by default (e.g., 'United' matches 'United States' and 'United Kingdom'). Leave empty to search all countries."
+          ),
         exactMatch: z
           .boolean()
           .optional()
           .default(false)
-          .describe("Whether to use exact match or partial match for location"),
+          .describe(
+            "Use exact string matching instead of partial matching. Set to true for precise location filtering, false (default) for broader geographic search."
+          ),
         limit: z
           .number()
           .optional()
           .default(50)
-          .describe("Maximum number of profiles to return (default: 50)"),
+          .describe(
+            "Maximum number of profiles to return (default: 50). Consider lower limits for broad searches to avoid overwhelming results."
+          ),
       },
       async ({ city, country, exactMatch = false, limit = 50 }) => {
         logger.info("Get profiles by location tool called", {
@@ -529,18 +602,25 @@ const handler = createMcpHandler(
           let query = sql`
             SELECT 
               id,
+              urn,
               username,
               first_name,
               last_name,
               city,
               country,
               headline,
+              summary,
               most_recent_company_name,
               most_recent_company_title,
+              most_recent_company_logo,
+              most_recent_school,
+              most_recent_school_degree,
               is_open_to_work,
               is_hiring,
               is_creator,
-              is_headstarter_affiliated
+              is_headstarter_affiliated,
+              fulltime_count,
+              internship_count
             FROM hs_linkedin_network
             WHERE 1=1
           `;
@@ -561,7 +641,7 @@ const handler = createMcpHandler(
             }
           }
 
-          query = sql`${query} ORDER BY city, country, last_name LIMIT ${limit}`;
+          query = sql`${query} ORDER BY country ASC, city ASC, last_name ASC LIMIT ${limit}`;
 
           logger.debug("Executing get profiles by location query");
           const results = await db.execute(query);
@@ -609,23 +689,39 @@ const handler = createMcpHandler(
     // Get open to work profiles
     server.tool(
       "get-open-to-work-profiles",
-      "Get LinkedIn profiles of people who are currently open to work opportunities. Useful for recruiters and hiring managers to find available talent. Returns profiles with work status and professional details.",
+      "Get LinkedIn profiles of people who are currently open to work opportunities. Essential tool for recruiters, hiring managers, and talent acquisition teams to find available candidates actively seeking employment. Returns profiles with comprehensive professional information including work history (fulltime_count, internship_count), current location, recent company experience, education background, and professional status indicators. Results are sorted by total experience level (most experienced first) to help prioritize qualified candidates. Supports additional filtering by location, company background, and minimum experience requirements for targeted talent sourcing.",
       {
-        city: z.string().optional().describe("Filter by city"),
-        country: z.string().optional().describe("Filter by country"),
+        city: z
+          .string()
+          .optional()
+          .describe(
+            "Filter by city name using partial matching (e.g., 'Angeles' matches 'Los Angeles'). Useful for location-specific hiring."
+          ),
+        country: z
+          .string()
+          .optional()
+          .describe(
+            "Filter by country name using partial matching (e.g., 'Canada' matches profiles in Canada). Useful for geographic hiring constraints."
+          ),
         company: z
           .string()
           .optional()
-          .describe("Filter by most recent company"),
+          .describe(
+            "Filter by most recent company name using partial matching (e.g., 'Microsoft' matches 'Microsoft Corporation'). Useful for finding candidates with specific company experience."
+          ),
         minExperience: z
           .number()
           .optional()
-          .describe("Minimum total experience (fulltime + internship count)"),
+          .describe(
+            "Minimum total experience level (sum of fulltime_count + internship_count). Use to filter for entry-level (0-1), mid-level (2-4), or senior-level (5+) candidates."
+          ),
         limit: z
           .number()
           .optional()
           .default(50)
-          .describe("Maximum number of profiles to return (default: 50)"),
+          .describe(
+            "Maximum number of profiles to return (default: 50). Consider higher limits for comprehensive talent pools, lower for focused searches."
+          ),
       },
       async ({ city, country, company, minExperience, limit = 50 }) => {
         logger.info("Get open to work profiles tool called", {
@@ -640,6 +736,7 @@ const handler = createMcpHandler(
           let query = sql`
             SELECT 
               id,
+              urn,
               username,
               first_name,
               last_name,
@@ -649,7 +746,11 @@ const handler = createMcpHandler(
               summary,
               most_recent_company_name,
               most_recent_company_title,
+              most_recent_company_logo,
+              most_recent_company_year,
               most_recent_school,
+              most_recent_school_degree,
+              most_recent_school_year,
               fulltime_count,
               internship_count,
               is_creator,
@@ -671,7 +772,7 @@ const handler = createMcpHandler(
             query = sql`${query} AND (fulltime_count + internship_count) >= ${minExperience}`;
           }
 
-          query = sql`${query} ORDER BY (fulltime_count + internship_count) DESC LIMIT ${limit}`;
+          query = sql`${query} ORDER BY (fulltime_count + internship_count) DESC, last_name ASC LIMIT ${limit}`;
 
           logger.debug("Executing get open to work profiles query");
           const results = await db.execute(query);
@@ -717,16 +818,33 @@ const handler = createMcpHandler(
     // Get hiring profiles
     server.tool(
       "get-hiring-profiles",
-      "Get LinkedIn profiles of people who are currently hiring. Useful for job seekers to find potential opportunities and connect with hiring managers. Returns profiles with company details and contact information.",
+      "Get LinkedIn profiles of people who are currently hiring and actively recruiting candidates. Essential tool for job seekers and business development to identify hiring managers and decision-makers. Returns complete company information and professional backgrounds sorted by company and seniority.",
       {
-        city: z.string().optional().describe("Filter by city"),
-        country: z.string().optional().describe("Filter by country"),
-        company: z.string().optional().describe("Filter by company name"),
+        city: z
+          .string()
+          .optional()
+          .describe(
+            "Filter by city name using partial matching. Useful for finding local hiring managers and in-person opportunities."
+          ),
+        country: z
+          .string()
+          .optional()
+          .describe(
+            "Filter by country name using partial matching. Useful for geographic job search or regional business development."
+          ),
+        company: z
+          .string()
+          .optional()
+          .describe(
+            "Filter by company name using partial matching (e.g., 'Amazon' matches 'Amazon Web Services', 'Amazon.com'). Useful for targeting specific employers or competitors."
+          ),
         limit: z
           .number()
           .optional()
           .default(50)
-          .describe("Maximum number of profiles to return (default: 50)"),
+          .describe(
+            "Maximum number of profiles to return (default: 50). Higher limits provide broader networking opportunities."
+          ),
       },
       async ({ city, country, company, limit = 50 }) => {
         logger.info("Get hiring profiles tool called", {
@@ -740,6 +858,7 @@ const handler = createMcpHandler(
           let query = sql`
             SELECT 
               id,
+              urn,
               username,
               first_name,
               last_name,
@@ -748,7 +867,12 @@ const handler = createMcpHandler(
               headline,
               summary,
               most_recent_company_name,
+              most_recent_company_username,
               most_recent_company_title,
+              most_recent_company_logo,
+              most_recent_company_year,
+              fulltime_count,
+              internship_count,
               is_creator,
               is_headstarter_affiliated
             FROM hs_linkedin_network
@@ -765,7 +889,7 @@ const handler = createMcpHandler(
             query = sql`${query} AND most_recent_company_name ILIKE ${`%${company}%`}`;
           }
 
-          query = sql`${query} ORDER BY most_recent_company_name, last_name LIMIT ${limit}`;
+          query = sql`${query} ORDER BY most_recent_company_name ASC, (fulltime_count + internship_count) DESC, last_name ASC LIMIT ${limit}`;
 
           logger.debug("Executing get hiring profiles query");
           const results = await db.execute(query);
@@ -811,20 +935,39 @@ const handler = createMcpHandler(
     // Get creator profiles
     server.tool(
       "get-creator-profiles",
-      "Get LinkedIn profiles of content creators and thought leaders. Useful for finding influencers, potential collaborators, or learning from industry experts. Returns creator profiles with their professional background.",
+      "Get LinkedIn profiles of content creators, thought leaders, and industry influencers who actively create professional content. Perfect for identifying collaboration partners, brand ambassadors, speakers, and industry experts with comprehensive professional backgrounds.",
       {
-        city: z.string().optional().describe("Filter by city"),
-        country: z.string().optional().describe("Filter by country"),
-        company: z.string().optional().describe("Filter by company name"),
+        city: z
+          .string()
+          .optional()
+          .describe(
+            "Filter by city name using partial matching. Useful for finding local creators for regional events or location-specific content."
+          ),
+        country: z
+          .string()
+          .optional()
+          .describe(
+            "Filter by country name using partial matching. Useful for geographic content strategy or regional thought leadership."
+          ),
+        company: z
+          .string()
+          .optional()
+          .describe(
+            "Filter by company name using partial matching. Useful for finding creators at specific companies or in particular industries."
+          ),
         isHeadstarterAffiliated: z
           .boolean()
           .optional()
-          .describe("Filter by Headstarter affiliation"),
+          .describe(
+            "Filter by Headstarter community affiliation. True finds creators within the Headstarter ecosystem, useful for community-specific collaborations."
+          ),
         limit: z
           .number()
           .optional()
           .default(50)
-          .describe("Maximum number of profiles to return (default: 50)"),
+          .describe(
+            "Maximum number of profiles to return (default: 50). Higher limits provide broader creator discovery opportunities."
+          ),
       },
       async ({
         city,
@@ -843,8 +986,9 @@ const handler = createMcpHandler(
 
         try {
           let query = sql`
-              SELECT 
+            SELECT 
               id,
+              urn,
               username,
               first_name,
               last_name,
@@ -854,7 +998,10 @@ const handler = createMcpHandler(
               summary,
               most_recent_company_name,
               most_recent_company_title,
+              most_recent_company_logo,
+              most_recent_company_year,
               most_recent_school,
+              most_recent_school_degree,
               is_open_to_work,
               is_hiring,
               is_headstarter_affiliated,
@@ -877,7 +1024,7 @@ const handler = createMcpHandler(
             query = sql`${query} AND is_headstarter_affiliated = ${isHeadstarterAffiliated}`;
           }
 
-          query = sql`${query} ORDER BY last_name LIMIT ${limit}`;
+          query = sql`${query} ORDER BY (fulltime_count + internship_count) DESC, last_name ASC LIMIT ${limit}`;
 
           logger.debug("Executing get creator profiles query");
           const results = await db.execute(query);
@@ -923,24 +1070,45 @@ const handler = createMcpHandler(
     // Get Headstarter affiliated profiles
     server.tool(
       "get-headstarter-affiliated-profiles",
-      "Get LinkedIn profiles of people affiliated with Headstarter. Useful for finding Headstarter community members, alumni, and network connections. Returns profiles with their professional background and current status.",
+      "Get LinkedIn profiles of Headstarter community members including Fellows, program participants, employees, and mentors. Essential for community networking, alumni connections, and ecosystem mapping within the Headstarter network with comprehensive professional information.",
       {
         isOpenToWork: z
           .boolean()
           .optional()
-          .describe("Filter by users open to work"),
+          .describe(
+            "Filter by Headstarter community members who are actively seeking job opportunities. Useful for internal recruiting or alumni job placement."
+          ),
         isHiring: z
           .boolean()
           .optional()
-          .describe("Filter by users who are hiring"),
-        isCreator: z.boolean().optional().describe("Filter by creator status"),
-        city: z.string().optional().describe("Filter by city"),
-        country: z.string().optional().describe("Filter by country"),
+          .describe(
+            "Filter by Headstarter community members who are currently hiring. Useful for finding job opportunities within the Headstarter network or partnership opportunities."
+          ),
+        isCreator: z
+          .boolean()
+          .optional()
+          .describe(
+            "Filter by Headstarter community members who are also content creators. Useful for identifying potential ambassadors, speakers, or thought leaders within the community."
+          ),
+        city: z
+          .string()
+          .optional()
+          .describe(
+            "Filter by city name using partial matching. Useful for organizing local Headstarter meetups or finding regional community members."
+          ),
+        country: z
+          .string()
+          .optional()
+          .describe(
+            "Filter by country name using partial matching. Useful for international Headstarter community analysis or regional expansion planning."
+          ),
         limit: z
           .number()
           .optional()
           .default(100)
-          .describe("Maximum number of profiles to return (default: 100)"),
+          .describe(
+            "Maximum number of profiles to return (default: 100). Higher limits provide comprehensive community mapping."
+          ),
       },
       async ({
         isOpenToWork,
@@ -963,6 +1131,7 @@ const handler = createMcpHandler(
           let query = sql`
             SELECT 
               id,
+              urn,
               username,
               first_name,
               last_name,
@@ -972,7 +1141,11 @@ const handler = createMcpHandler(
               summary,
               most_recent_company_name,
               most_recent_company_title,
+              most_recent_company_logo,
+              most_recent_company_year,
               most_recent_school,
+              most_recent_school_degree,
+              most_recent_school_year,
               is_open_to_work,
               is_hiring,
               is_creator,
@@ -998,7 +1171,7 @@ const handler = createMcpHandler(
             query = sql`${query} AND country ILIKE ${`%${country}%`}`;
           }
 
-          query = sql`${query} ORDER BY last_name LIMIT ${limit}`;
+          query = sql`${query} ORDER BY (fulltime_count + internship_count) DESC, last_name ASC LIMIT ${limit}`;
 
           logger.debug("Executing get Headstarter affiliated profiles query");
           const results = await db.execute(query);
@@ -1052,44 +1225,46 @@ const handler = createMcpHandler(
     capabilities: {
       resources: {
         "linkedin-network-schema": {
-          description: "LinkedIn Network database table schema and structure",
+          description:
+            "LinkedIn Network database table schema and structure with detailed field information",
         },
         "linkedin-network-stats": {
-          description: "LinkedIn Network statistics and overview",
+          description:
+            "LinkedIn Network statistics and overview including counts by professional status and geographic distribution",
         },
       },
       tools: {
         "linkedin-sql-query": {
           description:
-            "Execute read-only queries against the LinkedIn Network table (hs_linkedin_network) with automatic LIMIT protection. Contains LinkedIn profile data including personal info, work status, location, experience, and education details. Only SELECT statements allowed for security.",
+            "Execute read-only SELECT queries against the LinkedIn Network table (hs_linkedin_network) with comprehensive profile data including personal information, professional status, location, experience counts, company details, and education information. Automatic LIMIT protection ensures performance. Only SELECT statements allowed for security.",
         },
         "get-linkedin-profile": {
           description:
-            "Get a specific LinkedIn profile by username or URN from the LinkedIn network. Returns complete profile information including personal details, work status, location, experience counts, and most recent company/school information.",
+            "Get a specific LinkedIn profile by username or URN with complete professional information including personal details, work status, location, experience metrics, current company information, and education background. Ideal for detailed profile analysis and targeted networking research.",
         },
         "search-linkedin-profiles": {
           description:
-            "Advanced search of LinkedIn profiles with multiple filter options. Filter by work status (open to work, hiring), professional attributes (creator status, Headstarter affiliation), location (city, country), and experience levels. Great for talent sourcing and networking.",
+            "Advanced search of LinkedIn profiles with comprehensive filtering options including work status, professional attributes, geographic location, company/school affiliations, and experience levels. Perfect for talent sourcing, networking, recruitment, and business development with intelligent sorting by experience level.",
         },
         "get-profiles-by-location": {
           description:
-            "Get LinkedIn profiles from specific geographic locations. Useful for finding talent or connections in particular cities or countries. Returns profiles with location details and basic professional information.",
+            "Get LinkedIn profiles from specific geographic locations with flexible partial or exact matching. Essential for regional talent sourcing, local networking, market research, and geographic business expansion. Returns complete location and professional details.",
         },
         "get-open-to-work-profiles": {
           description:
-            "Get LinkedIn profiles of people who are currently open to work opportunities. Useful for recruiters and hiring managers to find available talent. Returns profiles with work status and professional details.",
+            "Get LinkedIn profiles of people actively seeking job opportunities. Essential for recruiters and hiring managers to find available candidates with comprehensive professional backgrounds, sorted by experience level. Supports filtering by location, company background, and experience requirements.",
         },
         "get-hiring-profiles": {
           description:
-            "Get LinkedIn profiles of people who are currently hiring. Useful for job seekers to find potential opportunities and connect with hiring managers. Returns profiles with company details and contact information.",
+            "Get LinkedIn profiles of people currently hiring and recruiting candidates. Essential for job seekers and business development to identify hiring managers and decision-makers. Returns complete company information and professional backgrounds sorted by company and seniority.",
         },
         "get-creator-profiles": {
           description:
-            "Get LinkedIn profiles of content creators and thought leaders. Useful for finding influencers, potential collaborators, or learning from industry experts. Returns creator profiles with their professional background.",
+            "Get LinkedIn profiles of content creators, thought leaders, and industry influencers who actively create professional content. Perfect for identifying collaboration partners, brand ambassadors, speakers, and industry experts with comprehensive professional backgrounds.",
         },
         "get-headstarter-affiliated-profiles": {
           description:
-            "Get LinkedIn profiles of people affiliated with Headstarter. These are people who have added Headstarter as an experience on their LinkedIn profile. Useful for finding Headstarter community members, alumni, and network connections. Returns profiles with their professional background and current status.",
+            "Get LinkedIn profiles of Headstarter community members including Fellows, program participants, employees, and mentors. Essential for community networking, alumni connections, and ecosystem mapping within the Headstarter network with comprehensive professional information.",
         },
       },
     },
