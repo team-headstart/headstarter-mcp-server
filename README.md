@@ -2,6 +2,23 @@
 
 A **Model Context Protocol (MCP) Server** that provides AI assistants with access to LinkedIn profile data from the Headstarter network. This server enables intelligent querying, searching, and analysis of LinkedIn profiles for recruiting, networking, and community building.
 
+## Add to Cursor
+
+1. Go to Cursor Settings
+2. Click on "Tools & Integrations"
+3. Click on "Add MCP Server"
+4. Paste the following JSON into the "MCP Servers" field:
+
+```json
+{
+  "mcpServers": {
+    "Headstarter-MCP": {
+      "url": "https://headstarter-mcp-server.vercel.app/sse"
+    },
+  }
+}
+```
+
 ## What is MCP?
 
 The [Model Context Protocol (MCP)](https://modelcontextprotocol.io) is a standardized way for AI applications to access external data and functionality. This server implements MCP to expose LinkedIn network data through tools and resources that AI assistants can use.
