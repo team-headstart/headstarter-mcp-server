@@ -1,14 +1,16 @@
 {
-  "name": "next.js-mcp-server",
+  "name": "headstarter-mcp-server",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,md}\""
   },
   "dependencies": {
     "@vercel/mcp-adapter": "0.8.2",
+    "drizzle-orm": "^0.44.2",
     "next": "15.2.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
