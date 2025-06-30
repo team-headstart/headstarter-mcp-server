@@ -14,7 +14,7 @@ A **Model Context Protocol (MCP) Server** that provides AI assistants with acces
   "mcpServers": {
     "Headstarter-MCP": {
       "url": "https://headstarter-mcp-server.vercel.app/sse"
-    },
+    }
   }
 }
 ```
