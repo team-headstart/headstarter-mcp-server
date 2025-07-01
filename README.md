@@ -19,6 +19,13 @@ A **Model Context Protocol (MCP) Server** that provides AI assistants with acces
 }
 ```
 
+## Example Usage
+
+<div style="display: flex; gap: 20px;">
+  <img src="./examples/example1.png" alt="Example Usage" width="45%" />
+  <img src="./examples/example2.png" alt="Example Usage" width="45%" />
+</div>
+
 ## What is MCP?
 
 The [Model Context Protocol (MCP)](https://modelcontextprotocol.io) is a standardized way for AI applications to access external data and functionality. This server implements MCP to expose LinkedIn network data through tools and resources that AI assistants can use.
@@ -55,7 +62,7 @@ This MCP server provides access to a database of LinkedIn profiles from the Head
 - **`linkedin-network-schema`** - Database table schema and structure
 - **`linkedin-network-stats`** - Network statistics and overview
 
-## Usage Examples
+## More Usage Examples
 
 ### Get Headstarter Alumni in New York
 
