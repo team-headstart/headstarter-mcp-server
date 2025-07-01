@@ -2,8 +2,149 @@
 "use client";
 
 import { Logo } from "./components/logo";
+import { useState } from "react";
+import ReactMarkdown from "react-markdown";
+
+function LoadingSkeleton() {
+  return (
+    <div className="max-w-3xl mx-auto mb-8">
+      <div className="bg-slate-900/50 border border-slate-700 rounded-xl overflow-hidden backdrop-blur-lg">
+        <div className="px-6 py-4 bg-slate-800/50 border-b border-slate-700 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <div className="w-2 h-2 bg-slate-600 rounded-full animate-pulse"></div>
+            <div className="h-4 w-24 bg-slate-700 rounded animate-pulse"></div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div className="h-8 w-20 bg-slate-700 rounded animate-pulse"></div>
+          </div>
+        </div>
+        <div className="divide-y divide-slate-700/50">
+          <div className="p-6">
+            <div className="space-y-6">
+              {/* Title skeleton */}
+              <div className="flex items-center space-x-3">
+                <div className="h-6 bg-slate-700 rounded w-1/4 animate-pulse"></div>
+                <div className="h-px flex-1 bg-slate-700/50"></div>
+              </div>
+
+              {/* Paragraph skeletons with different widths */}
+              <div className="space-y-4">
+                <div className="h-4 bg-slate-700 rounded w-3/4 animate-pulse delay-100"></div>
+                <div className="h-4 bg-slate-700 rounded w-full animate-pulse delay-200"></div>
+                <div className="h-4 bg-slate-700 rounded w-2/3 animate-pulse delay-300"></div>
+              </div>
+
+              {/* List skeleton */}
+              <div className="space-y-3">
+                <div className="flex items-start space-x-2">
+                  <div className="w-2 h-2 bg-slate-700 rounded-full mt-1 animate-pulse"></div>
+                  <div className="h-4 bg-slate-700 rounded w-1/2 animate-pulse"></div>
+                </div>
+                <div className="flex items-start space-x-2">
+                  <div className="w-2 h-2 bg-slate-700 rounded-full mt-1 animate-pulse"></div>
+                  <div className="h-4 bg-slate-700 rounded w-2/3 animate-pulse"></div>
+                </div>
+                <div className="flex items-start space-x-2">
+                  <div className="w-2 h-2 bg-slate-700 rounded-full mt-1 animate-pulse"></div>
+                  <div className="h-4 bg-slate-700 rounded w-3/4 animate-pulse"></div>
+                </div>
+              </div>
+
+              {/* Code block skeleton */}
+              <div className="bg-slate-800/50 px-4 py-3 rounded-lg border border-slate-700/50">
+                <div className="space-y-2">
+                  <div className="h-4 bg-slate-700 rounded w-full animate-pulse"></div>
+                  <div className="h-4 bg-slate-700 rounded w-2/3 animate-pulse"></div>
+                  <div className="h-4 bg-slate-700 rounded w-3/4 animate-pulse"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function HomePage() {
+  const [prompt, setPrompt] = useState("");
+  const [response, setResponse] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
+
+  const predefinedQueries = [
+    { text: "Headstarter members at Amazon in New York", icon: "🎯" },
+    { text: "Headstarter members who are now Founders", icon: "🎓" },
+    {
+      text: "Headstarter members who attended New York University",
+      icon: "🗽",
+    },
+  ];
+
+  const handleChipClick = async (query: string) => {
+    setPrompt(query);
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ prompt: query }),
+      });
+      const data = await res.json();
+      setResponse(data.output);
+    } catch (error) {
+      console.error("Error:", error);
+      setResponse("An error occurred while processing your request.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setPrompt(value);
+
+    // Only search if there's input
+    if (value.trim()) {
+      setIsLoading(true);
+      try {
+        const res = await fetch("/api", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ prompt: value }),
+        });
+        const data = await res.json();
+        setResponse(data.output);
+      } catch (error) {
+        console.error("Error:", error);
+        setResponse("An error occurred while processing your request.");
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      // Clear response if input is empty
+      setResponse("");
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault(); // Prevent form submission
+  };
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(response);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000); // Reset after 2 seconds
+    } catch (err) {
+      console.error("Failed to copy text:", err);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-white overflow-hidden">
       {/* Animated background elements */}
@@ -46,7 +187,254 @@ export default function HomePage() {
           <h1 className="text-5xl md:text-6xl font-bold mb-6 gradient-text">
             Headstarter MCP Server
           </h1>
-          <p className="text-lg md:text-xl text-slate-300 mb-8 leading-relaxed max-w-3xl mx-auto">
+
+          {/* AI Query Form */}
+          <form
+            onSubmit={handleSubmit}
+            className="max-w-4xl mx-auto mb-12 mt-12 px-6"
+          >
+            <div className="relative">
+              <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-blue-400 rounded-2xl blur opacity-20 group-hover:opacity-30 transition duration-1000 group-hover:duration-200"></div>
+              <div className="relative flex gap-3">
+                <div className="flex-1 relative">
+                  <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
+                    <svg
+                      className="h-6 w-6 text-slate-400"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
+                    </svg>
+                  </div>
+                  <input
+                    type="text"
+                    value={prompt}
+                    onChange={handleInputChange}
+                    placeholder="Find Headstarter members by company, location, etc."
+                    className="w-full pl-16 pr-6 py-5 bg-slate-900/50 border border-slate-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 placeholder-slate-400 text-left text-lg"
+                    disabled={isLoading}
+                  />
+                  {isLoading && (
+                    <div className="absolute inset-y-0 right-0 pr-6 flex items-center pointer-events-none">
+                      <svg
+                        className="animate-spin h-6 w-6 text-blue-500"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </form>
+
+          {/* Predefined Query Chips */}
+          <div className="flex flex-col gap-3 items-center mt-8 mb-12 px-4 sm:px-0">
+            {/* Top row with 2 chips */}
+            <div className="flex flex-col sm:flex-row gap-3 justify-center w-full">
+              {predefinedQueries.slice(0, 2).map((query, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleChipClick(query.text)}
+                  disabled={isLoading}
+                  className="flex items-center gap-2 px-4 py-3 bg-slate-800/50 hover:bg-slate-700/50 text-slate-300 hover:text-white rounded-xl border border-slate-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 hover:shadow-lg hover:shadow-blue-500/10 group sm:whitespace-nowrap w-full sm:w-auto"
+                >
+                  <span className="text-xl group-hover:scale-110 transition-transform duration-300">
+                    {query.icon}
+                  </span>
+                  <span className="text-sm font-medium">{query.text}</span>
+                </button>
+              ))}
+            </div>
+            {/* Bottom row with 1 chip */}
+            <div className="flex justify-center w-full">
+              {predefinedQueries.slice(2, 3).map((query, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleChipClick(query.text)}
+                  disabled={isLoading}
+                  className="flex items-center gap-2 px-4 py-3 bg-slate-800/50 hover:bg-slate-700/50 text-slate-300 hover:text-white rounded-xl border border-slate-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 hover:shadow-lg hover:shadow-blue-500/10 group sm:whitespace-nowrap w-full sm:w-auto"
+                >
+                  <span className="text-xl group-hover:scale-110 transition-transform duration-300">
+                    {query.icon}
+                  </span>
+                  <span className="text-sm font-medium">{query.text}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Loading State or Response */}
+          {isLoading ? (
+            <LoadingSkeleton />
+          ) : response ? (
+            <div className="max-w-3xl mx-auto mb-8">
+              <div className="bg-slate-900/50 border border-slate-700 rounded-xl overflow-hidden backdrop-blur-lg">
+                <div className="px-6 py-4 bg-slate-800/50 border-b border-slate-700 flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+                    <h3 className="text-sm font-medium text-slate-300">
+                      Search Results
+                    </h3>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={handleCopy}
+                      className="flex items-center space-x-2 px-2 py-1 rounded hover:bg-slate-700/50 transition-all duration-200"
+                      title="Copy to clipboard"
+                    >
+                      {isCopied ? (
+                        <>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5 text-emerald-400"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          <span className="text-sm text-emerald-400 font-medium">
+                            Copied!
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5 text-slate-400"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
+                            <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
+                          </svg>
+                          <span className="text-sm text-slate-400 font-medium">
+                            Copy
+                          </span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+                <div className="divide-y divide-slate-700/50">
+                  <div className="p-6 text-left">
+                    <div className="prose prose-invert max-w-none">
+                      <ReactMarkdown
+                        components={{
+                          p: ({ children }) => (
+                            <p className="text-slate-300 mb-4 last:mb-0">
+                              {children}
+                            </p>
+                          ),
+                          h1: ({ children }) => (
+                            <div className="flex items-center space-x-3 mb-6">
+                              <h1 className="text-2xl font-bold text-white">
+                                {children}
+                              </h1>
+                              <div className="h-px flex-1 bg-slate-700"></div>
+                            </div>
+                          ),
+                          h2: ({ children }) => (
+                            <div className="flex items-center space-x-3 mb-4 mt-8">
+                              <h2 className="text-xl font-bold text-white">
+                                {children}
+                              </h2>
+                              <div className="h-px flex-1 bg-slate-700/50"></div>
+                            </div>
+                          ),
+                          h3: ({ children }) => (
+                            <h3 className="text-lg font-bold text-white mb-3 mt-6">
+                              {children}
+                            </h3>
+                          ),
+                          ul: ({ children }) => (
+                            <ul className="space-y-3 mb-6 text-slate-300">
+                              {children}
+                            </ul>
+                          ),
+                          li: ({ children }) => (
+                            <li className="flex items-start">
+                              <span className="mr-2">•</span>
+                              <span>{children}</span>
+                            </li>
+                          ),
+                          a: ({ href, children }) => (
+                            <a
+                              href={href}
+                              className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              {children}
+                            </a>
+                          ),
+                          code: ({ children }) => (
+                            <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm text-slate-200 font-mono">
+                              {children}
+                            </code>
+                          ),
+                          pre: ({ children }) => (
+                            <pre className="bg-slate-800/50 px-4 py-3 rounded-lg overflow-x-auto mb-6 border border-slate-700/50 text-sm">
+                              {children}
+                            </pre>
+                          ),
+                          img: ({ src, alt }) => (
+                            <img
+                              src={src}
+                              alt={alt}
+                              className="max-w-full h-auto rounded-lg my-4 mx-auto"
+                              style={{
+                                maxHeight: "400px",
+                                objectFit: "contain",
+                              }}
+                            />
+                          ),
+                        }}
+                      >
+                        {response}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </section>
+
+      {/* About Section */}
+      <section className="relative z-10 py-24 px-4 sm:px-6 lg:px-8 border-b border-slate-800/50">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-3xl font-bold tracking-tight text-white mb-8">
+            About Headstarter MCP
+          </h2>
+          <p className="text-lg md:text-xl text-slate-300 mb-12 leading-relaxed">
             A Model Context Protocol (MCP) Server that provides AI assistants
             with intelligent access to LinkedIn profile data from the
             Headstarter network. Enable powerful querying, searching, and
