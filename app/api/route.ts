@@ -14,11 +14,11 @@ export async function POST(req: Request) {
     logger.debug("Initialized OpenAI client");
 
     logger.info("Sending request to OpenAI", {
-      model: "gpt-4.1",
+      model: "o4-mini",
       serverLabel: "headstarter-mcp-server",
     });
 
-    const formattedPrompt = `
+    const systemPrompt = `
     <INSTRUCTIONS>
     You are a helpful assistant that can help find information about Headstarter members.
     You have access to a database table called 'hs_linkedin_network' through the Headstarter MCP server with the following schema:
@@ -51,6 +51,8 @@ export async function POST(req: Request) {
       * most_recent_company_logo (text): Company logo URL
       * most_recent_company_title (text): Current job title
       * most_recent_company_year (varchar): Job start year
+      * past_companies: (jsonb): List of past companies
+      * skills: (jsonb): List of skills
 
     - Education:
       * most_recent_school (varchar): Most recent school name
@@ -62,34 +64,49 @@ export async function POST(req: Request) {
     When responding, focus on providing relevant information based on the user's query.
 
     Do NOT include the most_recent_company_logo in your response.
-    <INSTRUCTIONS>
-
-    Here is the user's query:
-    <USER_QUERY>
-    ${prompt}
-    </USER_QUERY>
+    </INSTRUCTIONS>
     `;
 
     const resp = await client.responses.create({
-      model: "gpt-4.1",
+      model: "o4-mini",
+      input: [
+        {
+          role: "developer",
+          content: [
+            {
+              type: "input_text",
+              text: systemPrompt,
+            },
+          ],
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: prompt,
+            },
+          ],
+        },
+      ],
       tools: [
         {
           type: "mcp",
           server_label: "headstarter-mcp-server",
           server_url: "https://headstarter-mcp-server.vercel.app/sse",
-          require_approval: {
-            never: {
-              tool_names: [
-                "get-headstarter-affiliated-profiles",
-                "search-linkedin-profiles",
-                "linkedin-sql-query",
-                "get-linkedin-profile",
-              ],
-            },
-          },
+          allowed_tools: [
+            "linkedin-sql-query",
+            "get-linkedin-profile",
+            "search-linkedin-profiles",
+            "get-profiles-by-location",
+            "get-open-to-work-profiles",
+            "get-hiring-profiles",
+            "get-creator-profiles",
+            "get-headstarter-affiliated-profiles",
+          ],
+          require_approval: "never",
         },
       ],
-      input: formattedPrompt,
     });
 
     logger.info("Received response from OpenAI");
